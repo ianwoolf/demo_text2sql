@@ -40,11 +40,12 @@ database or model credentials.
 1. Open **Data Chat** and ask “Show monthly sales this year”.
 2. Review the visible Dataset, SQL, execution, result table, and visualization.
 3. Open **Data Transformation**.
-4. Select `orders` and `customers`, with `orders` as the primary source.
-5. Generate Spark SQL from the example transformation requirement.
-6. Configure `analytics.sales.monthly_region_sales` as the Sink.
-7. Create the request and open **Task Center**.
-8. Submit the request, Demo Approve it, and Demo Mark Success.
+4. Enter a transformation requirement and review the mocked similar jobs and history.
+5. Open a recommendation to inspect its Source, SparkSQL, and Sink snapshot; **Use Sources** copies only its Source selection.
+6. Confirm the selected Source Data and generate Spark SQL.
+7. Configure `analytics.sales.monthly_region_sales` as the Sink.
+8. Create the request and open **Task Center**.
+9. Submit the request, Demo Approve it, and Demo Mark Success.
 
 ## Live Services
 
@@ -75,6 +76,8 @@ The key remains backend-only. Real LLM never silently falls back to Mock. Invali
 `LOG_LLM_PAYLOADS=true` logs the selected metadata, transformation requirement, Sink constraints, raw model text, token usage, generated SQL, and sqlglot validation result. It never logs the Anthropic API key or authorization headers. Set it to `false` outside local debugging when payload logging is not appropriate.
 
 ## SparkSQL Transformation Workflow
+
+The UI is ordered as Requirement → Source Data → SparkSQL → Sink. After the requirement is entered, a frontend mock knowledge base recommends similar online jobs and historical requests. A recommendation can be inspected in full, but applying it copies only its Source selection and clears stale generated SQL; the current requirement and Sink remain unchanged.
 
 The Data Transformation workflow packages selected Source Dataset metadata, generated SparkSQL, and the Sink definition into an immutable request snapshot. The request stops at the `SparkJobRunner` boundary until a real runner integration is provided.
 
