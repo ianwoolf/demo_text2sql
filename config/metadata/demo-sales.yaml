@@ -1,0 +1,42 @@
+name: Sales Analytics Demo
+schema_name: demo_sales
+tables:
+  - name: customers
+    description: Customer master data
+    owner: CRM Team
+    data_tier: T2
+    columns:
+      - {name: customer_id, data_type: bigint, description: Unique customer identifier, nullable: false, primary_key: true}
+      - {name: customer_name, data_type: varchar, description: Customer name}
+      - {name: region, data_type: varchar, description: Sales region, sample_values: [East, South, North]}
+  - name: orders
+    description: Sales orders, one row per order
+    owner: Sales Operations
+    data_tier: T1
+    columns:
+      - {name: order_id, data_type: bigint, description: Order identifier, nullable: false, primary_key: true}
+      - {name: customer_id, data_type: bigint, description: Customer identifier}
+      - {name: order_date, data_type: date, description: Order date}
+      - {name: amount, data_type: decimal, description: Tax-inclusive order amount}
+      - {name: status, data_type: varchar, description: Order status, sample_values: [completed, refunded, processing]}
+  - name: products
+    description: Product catalog
+    owner: Merchandising
+    data_tier: T2
+    columns:
+      - {name: product_id, data_type: bigint, description: Product identifier, nullable: false, primary_key: true}
+      - {name: product_name, data_type: varchar, description: Product name}
+      - {name: category, data_type: varchar, description: Product category}
+  - name: order_items
+    description: Order line items
+    owner: Commerce Platform
+    data_tier: T1
+    columns:
+      - {name: order_id, data_type: bigint, description: Order identifier}
+      - {name: product_id, data_type: bigint, description: Product identifier}
+      - {name: quantity, data_type: int, description: Purchased quantity}
+      - {name: line_amount, data_type: decimal, description: Line sales amount}
+relations:
+  - {left: orders.customer_id, right: customers.customer_id, description: Order customer}
+  - {left: order_items.order_id, right: orders.order_id, description: Line item order}
+  - {left: order_items.product_id, right: products.product_id, description: Line item product}

@@ -1,0 +1,24 @@
+{
+  "monthly_sales": {
+    "keywords": ["sales", "monthly", "month", "trend", "gmv"],
+    "sql": "SELECT DATE_FORMAT(order_date, '%Y-%m') AS month, SUM(amount) AS sales FROM orders WHERE status = 'completed' GROUP BY month ORDER BY month LIMIT 200",
+    "answer": "Sales increased steadily this year, reaching a peak of $1,284,000 in June, up about 42% from January.",
+    "columns": ["month", "sales"],
+    "rows": [
+      {"month": "2026-01", "sales": 904000}, {"month": "2026-02", "sales": 986000},
+      {"month": "2026-03", "sales": 1052000}, {"month": "2026-04", "sales": 1176000},
+      {"month": "2026-05", "sales": 1218000}, {"month": "2026-06", "sales": 1284000}
+    ],
+    "chart": {"type": "line", "x_key": "month", "y_keys": ["sales"]},
+    "followups": ["Which region grew the fastest?", "Break down sales by product category", "How did refunds affect sales?"]
+  },
+  "regional_sales": {
+    "keywords": ["region", "regional", "east", "south"],
+    "sql": "SELECT c.region, SUM(o.amount) AS sales FROM orders o JOIN customers c ON o.customer_id = c.customer_id WHERE o.status = 'completed' GROUP BY c.region ORDER BY sales DESC LIMIT 200",
+    "answer": "The East region contributes the most, representing about 43% of demo sales.",
+    "columns": ["region", "sales"],
+    "rows": [{"region": "East", "sales": 2480000}, {"region": "South", "sales": 1840000}, {"region": "North", "sales": 1450000}],
+    "chart": {"type": "bar", "x_key": "region", "y_keys": ["sales"]},
+    "followups": ["Which customers contribute most in the East?", "How does this compare with last quarter?"]
+  }
+}

@@ -1,0 +1,11 @@
+.DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.db
+node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+.env
+docs/superpowers
