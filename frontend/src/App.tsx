@@ -1702,7 +1702,7 @@ export function Admin({ space, section }: { space: Space; section: string }) {
                 </div>
               ))}
             </Panel>
-            <Panel title="Trusted Examples">
+            <Panel title="Examples">
               {semantic?.examples.map((e) => (
                 <div className="semantic-item" key={e.question}>
                   <b>✓ {e.question}</b>
