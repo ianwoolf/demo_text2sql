@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { KnowledgeRecommendations } from "./KnowledgeRecommendationPanel";
 import { SparkSQLExplanation } from "./SparkSQLExplanation";
@@ -828,6 +828,7 @@ function TransformationBuilder({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [detailTable, setDetailTable] = useState<Table | null>(null);
   const [requirement, setRequirement] = useState("");
+  const skipNextExampleSourceSync = useRef(false);
   const [sql, setSql] = useState<SparkSQL | null>(null);
   const [sink, setSink] = useState<Sink>({
     catalog: "analytics",
@@ -850,6 +851,10 @@ function TransformationBuilder({
       catalog.tables.map((table) => table.name),
     );
     if (!resolved) return;
+    if (skipNextExampleSourceSync.current) {
+      skipNextExampleSourceSync.current = false;
+      return;
+    }
     setSelected(resolved.selected);
     setPrimary(resolved.primary);
     setSql(null);
@@ -890,6 +895,11 @@ function TransformationBuilder({
     setPrimary(resolved.primary);
     setSql(null);
     setError("");
+  }
+  function useExampleForRecommendations(example: string) {
+    if (example === requirement) return;
+    skipNextExampleSourceSync.current = true;
+    setRequirement(example);
   }
   async function generate() {
     setBusy(true);
@@ -1000,7 +1010,11 @@ function TransformationBuilder({
       <div className="builder-grid">
         <div>
           <Panel title="1 · Transformation Requirement">
-            <TransformationQueryField value={requirement} onChange={setRequirement} />
+            <TransformationQueryField
+              value={requirement}
+              onChange={setRequirement}
+              onUseExample={useExampleForRecommendations}
+            />
             <KnowledgeRecommendations
               query={requirement}
               items={recommendations}

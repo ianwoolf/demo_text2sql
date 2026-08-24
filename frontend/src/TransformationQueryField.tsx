@@ -3,16 +3,17 @@ import {DEMO_QUERY} from './knowledgeRecommendations'
 type Props = {
   value: string
   onChange: (value: string) => void
+  onUseExample?: (value: string) => void
 }
 
-export function TransformationQueryField({value, onChange}: Props) {
+export function TransformationQueryField({value, onChange, onUseExample}: Props) {
   return (
     <div className="field transformation-query-field">
       <span className="query-label-row">
         <label htmlFor="transformation-query">What would you like to query?</label>
         <span className="query-example">
           <span>Example: {DEMO_QUERY}</span>
-          <button type="button" onClick={() => onChange(DEMO_QUERY)}>Use example</button>
+          <button type="button" onClick={() => onUseExample ? onUseExample(DEMO_QUERY) : onChange(DEMO_QUERY)}>Use example</button>
         </span>
       </span>
       <textarea
