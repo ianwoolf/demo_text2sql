@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { KnowledgeRecommendations } from "./KnowledgeRecommendationPanel";
 import {
+  deriveRequestName,
   recommendKnowledge,
   type ResolvedRecommendationSources,
 } from "./knowledgeRecommendations";
@@ -817,7 +818,6 @@ function TransformationBuilder({
     "Calculate completed monthly sales and distinct customer count by region.",
   );
   const [sql, setSql] = useState<SparkSQL | null>(null);
-  const [name, setName] = useState("Monthly regional sales");
   const [sink, setSink] = useState<Sink>({
     catalog: "analytics",
     database: "sales",
@@ -826,6 +826,7 @@ function TransformationBuilder({
     partition_columns: ["month"],
     description: "Monthly regional sales aggregate",
   });
+  const name = deriveRequestName(requirement);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
@@ -975,17 +976,17 @@ function TransformationBuilder({
         <div>
           <Panel title="1 · Transformation Requirement">
             <label className="field">
-              Request name
-              <input value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className="field">
-              Describe the transformation
+              What would you like to query?
               <textarea
                 rows={4}
                 value={requirement}
                 onChange={(e) => setRequirement(e.target.value)}
+                placeholder="Example: Calculate completed monthly sales and distinct customer count by region."
               />
             </label>
+            <small className="field-example">
+              Example: Calculate completed monthly sales and distinct customer count by region.
+            </small>
             <KnowledgeRecommendations
               query={requirement}
               items={recommendations}

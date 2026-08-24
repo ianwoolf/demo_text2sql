@@ -1,9 +1,20 @@
 import {describe, expect, it} from 'vitest'
 import {
   MOCK_KNOWLEDGE_RECOMMENDATIONS,
+  deriveRequestName,
   recommendKnowledge,
   resolveRecommendationSources,
 } from './knowledgeRecommendations'
+
+describe('deriveRequestName', () => {
+  it('creates a compact request name from the user question', () => {
+    expect(deriveRequestName('  Calculate completed monthly sales by region.  ')).toBe(
+      'Calculate completed monthly sales by region.',
+    )
+    expect(deriveRequestName('x'.repeat(70))).toBe('x'.repeat(60))
+    expect(deriveRequestName('   ')).toBe('Untitled transformation')
+  })
+})
 
 describe('recommendKnowledge', () => {
   it('returns no recommendations for an empty requirement', () => {

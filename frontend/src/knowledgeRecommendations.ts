@@ -24,6 +24,10 @@ export type KnowledgeRecommendation = {
 export type ScoredRecommendation = KnowledgeRecommendation & {similarity: number}
 export type ResolvedRecommendationSources = {selected: string[]; primary: string; missing: string[]}
 
+export function deriveRequestName(question: string): string {
+  return question.trim().slice(0, 60) || 'Untitled transformation'
+}
+
 export const MOCK_KNOWLEDGE_RECOMMENDATIONS: KnowledgeRecommendation[] = [
   {
     id: 'job-monthly-regional-sales',
