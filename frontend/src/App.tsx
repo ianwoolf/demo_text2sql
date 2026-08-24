@@ -3,8 +3,10 @@ import { api } from "./api";
 import { KnowledgeRecommendations } from "./KnowledgeRecommendationPanel";
 import { SparkSQLExplanation } from "./SparkSQLExplanation";
 import {
+  DEMO_QUERY,
   deriveRequestName,
   recommendKnowledge,
+  resolveDemoQuerySources,
   type ResolvedRecommendationSources,
 } from "./knowledgeRecommendations";
 
@@ -810,13 +812,11 @@ function TransformationBuilder({
   onCreated: (id: string) => void;
 }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [selected, setSelected] = useState<string[]>(["orders", "customers"]);
-  const [primary, setPrimary] = useState("orders");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [primary, setPrimary] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [detailTable, setDetailTable] = useState<Table | null>(null);
-  const [requirement, setRequirement] = useState(
-    "Calculate completed monthly sales and distinct customer count by region.",
-  );
+  const [requirement, setRequirement] = useState("");
   const [sql, setSql] = useState<SparkSQL | null>(null);
   const [sink, setSink] = useState<Sink>({
     catalog: "analytics",
@@ -832,6 +832,18 @@ function TransformationBuilder({
   useEffect(() => {
     api<Catalog>(`/spaces/${space.id}/metadata`).then(setCatalog);
   }, [space.id]);
+  useEffect(() => {
+    if (!catalog) return;
+    const resolved = resolveDemoQuerySources(
+      requirement,
+      catalog.tables.map((table) => table.name),
+    );
+    if (!resolved) return;
+    setSelected(resolved.selected);
+    setPrimary(resolved.primary);
+    setSql(null);
+    setError("");
+  }, [requirement, catalog]);
   const sources = useMemo<Source[]>(
     () =>
       selected.map((table, index) => {
@@ -981,12 +993,9 @@ function TransformationBuilder({
                 rows={4}
                 value={requirement}
                 onChange={(e) => setRequirement(e.target.value)}
-                placeholder="Example: Calculate completed monthly sales and distinct customer count by region."
+                placeholder={DEMO_QUERY}
               />
             </label>
-            <small className="field-example">
-              Example: Calculate completed monthly sales and distinct customer count by region.
-            </small>
             <KnowledgeRecommendations
               query={requirement}
               items={recommendations}

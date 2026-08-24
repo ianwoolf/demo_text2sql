@@ -3,6 +3,7 @@ import {
   MOCK_KNOWLEDGE_RECOMMENDATIONS,
   deriveRequestName,
   recommendKnowledge,
+  resolveDemoQuerySources,
   resolveRecommendationSources,
 } from './knowledgeRecommendations'
 
@@ -69,5 +70,20 @@ describe('resolveRecommendationSources', () => {
       primary: 'customers',
       missing: ['orders'],
     })
+  })
+})
+
+describe('resolveDemoQuerySources', () => {
+  it('resolves the sample query to its recommended source datasets', () => {
+    expect(
+      resolveDemoQuerySources(
+        '  CALCULATE COMPLETED MONTHLY SALES AND DISTINCT CUSTOMER COUNT BY REGION. ',
+        ['orders', 'customers', 'products'],
+      ),
+    ).toEqual({selected: ['orders', 'customers'], primary: 'orders', missing: []})
+  })
+
+  it('does not change sources for a different query', () => {
+    expect(resolveDemoQuerySources('Show daily product revenue', ['orders', 'products'])).toBeNull()
   })
 })

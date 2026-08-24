@@ -24,6 +24,8 @@ export type KnowledgeRecommendation = {
 export type ScoredRecommendation = KnowledgeRecommendation & {similarity: number}
 export type ResolvedRecommendationSources = {selected: string[]; primary: string; missing: string[]}
 
+export const DEMO_QUERY = 'Calculate completed monthly sales and distinct customer count by region.'
+
 export function deriveRequestName(question: string): string {
   return question.trim().slice(0, 60) || 'Untitled transformation'
 }
@@ -195,4 +197,12 @@ export function resolveRecommendationSources(
     primary: selected.includes(recommendedPrimary) ? recommendedPrimary : (selected[0] ?? ''),
     missing,
   }
+}
+
+export function resolveDemoQuerySources(
+  query: string,
+  availableTables: string[],
+): ResolvedRecommendationSources | null {
+  if (query.trim().toLowerCase() !== DEMO_QUERY.toLowerCase()) return null
+  return resolveRecommendationSources(MOCK_KNOWLEDGE_RECOMMENDATIONS[0], availableTables)
 }
