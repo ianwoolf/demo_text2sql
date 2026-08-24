@@ -20,6 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+## TODO: load the .venv python environment if it exists
 (cd "$ROOT_DIR/backend" && python3 -m uvicorn app.main:app --reload --port 8000) &
 BACKEND_PID=$!
 (cd "$ROOT_DIR/frontend" && npm run dev -- --host 127.0.0.1) &

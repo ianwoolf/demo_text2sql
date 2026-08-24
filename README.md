@@ -22,7 +22,11 @@ center for Source / SparkSQL / Sink requests.
 Requirements: Python 3.11+ and Node.js 20+.
 
 ```bash
+# backend: create and activate a virtual environment, then install
 cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+
 python3 -m pip install -e .
 
 cd ../frontend
