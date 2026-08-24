@@ -124,7 +124,10 @@ export function KnowledgeRecommendations({query, items, availableTables, onUseSo
 
   return <div className="knowledge-recommendations">
     <div className="knowledge-heading">
-      <div><b>Similar Knowledge &amp; Jobs</b><small>Mock knowledge base · ranked from your requirement</small></div>
+      <div>
+        <b>Relevant Jobs &amp; History</b>
+        <small>Retrieved from the knowledge base using RAG—review related online jobs and historical operations for reference.</small>
+      </div>
       {items.length > 0 && <span>{items.length} matches</span>}
     </div>
 
