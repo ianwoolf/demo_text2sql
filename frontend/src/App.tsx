@@ -1572,7 +1572,7 @@ function TaskDetail({
   );
 }
 
-function Admin({ space, section }: { space: Space; section: string }) {
+export function Admin({ space, section }: { space: Space; section: string }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null),
     [semantic, setSemantic] = useState<Semantic | null>(null),
     [reviews, setReviews] = useState<any[]>([]),
@@ -1583,6 +1583,13 @@ function Admin({ space, section }: { space: Space; section: string }) {
     api<any[]>("/reviews").then(setReviews);
     api<any>("/benchmarks").then(setBench);
   }, [space.id]);
+  const dataDomains = [
+    {name: "Sales Operations", description: "Orders, transactions, and commercial activity", tables: ["orders", "order_items"]},
+    {name: "Customer", description: "Customer identity and regional attributes", tables: ["customers"]},
+    {name: "Product", description: "Product catalog and merchandising dimensions", tables: ["products"]},
+  ];
+  const tierLabel = (tier: Table["data_tier"]) =>
+    ({T1: "T1 · Raw", T2: "T2 · Curated", T3: "T3 · Aggregated"})[tier];
   if (section === "settings")
     return (
       <div className="admin-page">
@@ -1630,27 +1637,54 @@ function Admin({ space, section }: { space: Space; section: string }) {
           sub="Manage the metadata and business context used by generation."
         />
         <div className="grid semantics">
-          <Panel title={`Data Assets · ${catalog?.tables.length ?? 0} tables`}>
+          <Panel title={`Data Assets · ${catalog?.tables.length ?? 0} tables · ${dataDomains.length} domains`}>
             <div className="metadata-tree">
-              {catalog?.tables.map((t) => (
-                <details key={t.name} open>
-                  <summary>
-                    <span className="table-icon">▦</span>
-                    <b>{t.name}</b>
-                    <em>{t.description}</em>
-                  </summary>
-                  {t.columns.map((c) => (
-                    <div className="column" key={c.name}>
-                      <code>{c.name}</code>
-                      <span>{c.data_type}</span>
-                      <small>{c.description}</small>
-                    </div>
+              {dataDomains.map((domain) => {
+                const tables = catalog?.tables.filter((table) => domain.tables.includes(table.name)) || [];
+                return <section className="data-domain" aria-label={`${domain.name} domain`} key={domain.name}>
+                  <header className="data-domain-head">
+                    <div><span>DOMAIN</span><b>{domain.name}</b><small>{domain.description}</small></div>
+                    <em>{tables.length} {tables.length === 1 ? "dataset" : "datasets"}</em>
+                  </header>
+                  {tables.map((t) => (
+                    <details key={t.name} open>
+                      <summary>
+                        <span className="table-icon">▦</span>
+                        <div className="dataset-identity"><b>{t.name}</b><em>{t.description}</em></div>
+                        <div className="dataset-governance">
+                          <span className={`tier-badge ${t.data_tier.toLowerCase()}`}>{tierLabel(t.data_tier)}</span>
+                          <span><small>Owner</small>{t.owner}</span>
+                          <span><small>Classification</small>{t.name === "customers" ? "Restricted" : "Internal"}</span>
+                          <span><small>Your access</small>{t.name === "customers" ? "Query" : "Manage"}</span>
+                        </div>
+                      </summary>
+                      {t.columns.map((c) => (
+                        <div className="column" key={c.name}>
+                          <code>{c.name}</code>
+                          <span>{c.data_type}</span>
+                          <small>{c.description}</small>
+                        </div>
+                      ))}
+                    </details>
                   ))}
-                </details>
-              ))}
+                </section>;
+              })}
             </div>
           </Panel>
           <div>
+            <Panel title="User Access">
+              <div className="access-profile">
+                <span>AM</span>
+                <div><b>Alex Morgan</b><small>Data Administrator · Active</small></div>
+                <em>FULL ACCESS</em>
+              </div>
+              <div className="access-groups">
+                <small>GROUP MEMBERSHIP</small>
+                <span><b>Data Administrators</b><em>Manage · All domains</em></span>
+                <span><b>Sales Analytics</b><em>Query · Sales Operations</em></span>
+              </div>
+              <button className="manage-access-button">Manage Access</button>
+            </Panel>
             <Panel title="Business Metrics">
               {semantic?.metrics.map((m) => (
                 <div className="semantic-item" key={m.name}>
