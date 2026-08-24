@@ -1,4 +1,4 @@
-import {render, screen, within} from '@testing-library/react'
+import {render, screen} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {describe, expect, it, vi} from 'vitest'
 import {DemoScenarioGrid, MCP_DEMO_SCENARIOS, McpHistoryConversation} from './McpDemo'
@@ -30,19 +30,23 @@ describe('DemoScenarioGrid', () => {
 })
 
 describe('McpHistoryConversation', () => {
-  it('shows the complete ordered multi-MCP workflow', () => {
-    render(<McpHistoryConversation />)
+  it('shows a multi-turn conversation that gates MCP calls on user confirmations', () => {
+    const {container} = render(<McpHistoryConversation />)
 
-    const timeline = screen.getByRole('list', {name: 'MCP execution timeline'})
-    expect(within(timeline).getAllByRole('listitem').map(item => item.getAttribute('data-mcp'))).toEqual([
+    expect(screen.getAllByRole('group', {name: 'User message'})).toHaveLength(4)
+    expect(screen.getAllByRole('article', {name: /Chatbot response/})).toHaveLength(4)
+    expect([...container.querySelectorAll('[data-mcp]')].map(item => item.getAttribute('data-mcp'))).toEqual([
       'Knowledge Base MCP',
       'Metadata MCP',
       'Text2SQL MCP',
       'Query Engine MCP',
       'SparkJobRunner MCP',
+      'SparkJobRunner MCP',
       'Airflow MCP',
     ])
-    expect(screen.getAllByText('Waiting for approval')).toHaveLength(2)
+    expect(screen.getByText('Please confirm these business and delivery settings.')).toBeInTheDocument()
+    expect(screen.getByText('Approve this SQL and preview?')).toBeInTheDocument()
+    expect(screen.getByText('Goal completed')).toBeInTheDocument()
     expect(screen.getByText('sales_monthly_pipeline')).toBeInTheDocument()
   })
 })
