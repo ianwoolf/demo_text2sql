@@ -92,3 +92,46 @@ def test_provider_rejects_successful_generation_without_explanation():
 
     with pytest.raises(InvalidProviderResponse, match="explanation"):
         provider.generate(build_generation_context(request, catalog), request)
+
+
+def test_provider_normalizes_live_string_sufficiency_and_column_objects():
+    output = {
+        "status": "generated",
+        "sufficiency": "sufficient",
+        "sql": "SELECT 1 AS month, 'north' AS region",
+        "referenced_tables": [],
+        "output_columns": [
+            {"name": "month", "data_type": "integer", "description": "Sink partition"},
+            {"name": "region", "type": "string", "source": "customers.region"},
+        ],
+        "explanation": "Returns the requested month and region dimensions.",
+    }
+    provider, _ = provider_for(json.dumps(output))
+    request = TransformationSQLGenerateRequest.model_validate(generation_payload("llm"))
+    catalog = LocalFileMetadataProvider().load_catalog({"path": str(CATALOG_PATH)})
+
+    result = provider.generate(build_generation_context(request, catalog), request)
+
+    assert result.output.sufficiency.sufficient is True
+    assert result.output.output_columns == ["month", "region"]
+
+
+def test_provider_normalizes_insufficient_string_with_top_level_details():
+    output = {
+        "status": "insufficient_context",
+        "sufficiency": "insufficient",
+        "missing_information": ["customers.region metadata"],
+        "assumptions": [],
+        "sql": None,
+        "referenced_tables": [],
+        "output_columns": [],
+        "explanation": "Region metadata is missing.",
+    }
+    provider, _ = provider_for(json.dumps(output))
+    request = TransformationSQLGenerateRequest.model_validate(generation_payload("llm"))
+    catalog = LocalFileMetadataProvider().load_catalog({"path": str(CATALOG_PATH)})
+
+    result = provider.generate(build_generation_context(request, catalog), request)
+
+    assert result.output.sufficiency.sufficient is False
+    assert result.output.sufficiency.missing_information == ["customers.region metadata"]

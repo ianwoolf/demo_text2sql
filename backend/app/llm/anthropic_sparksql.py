@@ -23,7 +23,9 @@ Rules:
 - Give every output expression a stable, unique name and preserve requested sink partition columns.
 - When status is generated, explanation is required and must concisely explain the selected sources, joins, filters, aggregations, and how the query satisfies the user's requirement.
 - When the metadata is insufficient, explanation must state what information is missing and sql must be null.
-- Return JSON only with status, sufficiency, sql, referenced_tables, output_columns, and explanation. No Markdown fences."""
+- Return JSON only, with no Markdown fences, using exactly this shape:
+  {"status":"generated|insufficient_context","sufficiency":{"sufficient":true,"missing_information":[],"assumptions":[]},"sql":"SELECT ... or null","referenced_tables":["schema.table"],"output_columns":["column_name"],"explanation":"..."}
+- sufficiency must be an object, never a string. output_columns must contain column-name strings only, never objects."""
 
 
 class ProviderError(RuntimeError):
@@ -53,6 +55,30 @@ class ProviderGenerationResult(BaseModel):
     output: ModelOutput
     raw_response: str
     provider: ProviderMetadata
+
+
+def normalize_response_shape(parsed: dict[str, Any]) -> dict[str, Any]:
+    sufficiency = parsed.get("sufficiency")
+    if isinstance(sufficiency, bool):
+        sufficient = sufficiency
+    elif isinstance(sufficiency, str) and sufficiency.strip().lower() in {"sufficient", "insufficient"}:
+        sufficient = sufficiency.strip().lower() == "sufficient"
+    else:
+        sufficient = None
+    if sufficient is not None:
+        parsed["sufficiency"] = {
+            "sufficient": sufficient,
+            "missing_information": parsed.get("missing_information", []),
+            "assumptions": parsed.get("assumptions", []),
+        }
+
+    output_columns = parsed.get("output_columns")
+    if isinstance(output_columns, list):
+        parsed["output_columns"] = [
+            column.get("name") if isinstance(column, dict) and isinstance(column.get("name"), str) and column.get("name").strip() else column
+            for column in output_columns
+        ]
+    return parsed
 
 
 class AnthropicSparkSQLProvider:
@@ -93,13 +119,7 @@ class AnthropicSparkSQLProvider:
                 if not separator or first_line.lower() not in {"```", "```json"}:
                     raise InvalidProviderResponse("Anthropic returned unsupported Markdown instead of JSON.")
                 candidate = fenced_body[:-3].strip()
-            parsed = json.loads(candidate)
-            if isinstance(parsed.get("sufficiency"), bool):
-                parsed["sufficiency"] = {
-                    "sufficient": parsed["sufficiency"],
-                    "missing_information": parsed.get("missing_information", []),
-                    "assumptions": parsed.get("assumptions", []),
-                }
+            parsed = normalize_response_shape(json.loads(candidate))
             output = ModelOutput.model_validate(parsed)
         except InvalidProviderResponse:
             raise
