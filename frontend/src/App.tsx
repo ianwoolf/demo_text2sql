@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { KnowledgeRecommendations } from "./KnowledgeRecommendationPanel";
 import { SparkSQLExplanation } from "./SparkSQLExplanation";
+import { SparkSQLFailureNotice } from "./SparkSQLFailureNotice";
+import { TransformationQueryField } from "./TransformationQueryField";
 import {
-  DEMO_QUERY,
   deriveRequestName,
   recommendKnowledge,
   resolveDemoQuerySources,
@@ -911,20 +912,22 @@ function TransformationBuilder({
     } catch (e) {
       const message = (e as Error).message;
       setError(message);
+      const failureResult: SparkSQL = {
+        content: "",
+        version: 1,
+        generation_source: "anthropic",
+        status: "failed",
+        explanation: message,
+        sufficiency: {
+          sufficient: false,
+          missing_information: [],
+          assumptions: [],
+        },
+      };
+      setSql(failureResult);
       window.dispatchEvent(
         new CustomEvent("spark-generation-result", {
-          detail: {
-            content: "",
-            version: 1,
-            generation_source: "anthropic",
-            status: "failed",
-            explanation: message,
-            sufficiency: {
-              sufficient: false,
-              missing_information: [],
-              assumptions: [],
-            },
-          },
+          detail: failureResult,
         }),
       );
     } finally {
@@ -976,7 +979,7 @@ function TransformationBuilder({
           2 <b>Source Data</b>
         </span>
         <i />
-        <span className={sql ? "done" : ""}>
+        <span className={sql?.status === "generated" && sql.content ? "done" : ""}>
           3 <b>Spark SQL</b>
         </span>
         <i />
@@ -987,15 +990,7 @@ function TransformationBuilder({
       <div className="builder-grid">
         <div>
           <Panel title="1 · Transformation Requirement">
-            <label className="field">
-              What would you like to query?
-              <textarea
-                rows={4}
-                value={requirement}
-                onChange={(e) => setRequirement(e.target.value)}
-                placeholder={DEMO_QUERY}
-              />
-            </label>
+            <TransformationQueryField value={requirement} onChange={setRequirement} />
             <KnowledgeRecommendations
               query={requirement}
               items={recommendations}
@@ -1160,7 +1155,16 @@ function TransformationBuilder({
               </span>
               <span>{selected.length} source datasets</span>
             </div>
-            {sql ? (
+            {sql?.status === "insufficient_context" || sql?.status === "failed" ? (
+              <SparkSQLFailureNotice
+                status={sql.status}
+                explanation={sql.explanation}
+                missingInformation={sql.sufficiency?.missing_information || []}
+                validationErrors={sql.validation?.errors || []}
+                busy={busy}
+                onRetry={generate}
+              />
+            ) : sql?.content ? (
               <textarea
                 className="sql-editor"
                 value={sql.content}
@@ -1178,22 +1182,26 @@ function TransformationBuilder({
                 Spark SQL.
               </div>
             )}
-            <SparkSQLExplanation
-              generationSource={sql?.generation_source}
-              status={sql?.status}
-              explanation={sql?.explanation}
-            />
-            <div className="validation-strip">
-              <span>{sql ? "✓ SELECT-only query" : "○ SQL required"}</span>
-              <span>
-                {sql
-                  ? "✓ Selected sources only"
-                  : "○ Source validation pending"}
-              </span>
-              <span>
-                {sql ? "✓ Output columns detected" : "○ Output schema pending"}
-              </span>
-            </div>
+            {sql?.status !== "insufficient_context" && sql?.status !== "failed" && (
+              <>
+                <SparkSQLExplanation
+                  generationSource={sql?.generation_source}
+                  status={sql?.status}
+                  explanation={sql?.explanation}
+                />
+                <div className="validation-strip">
+                  <span>{sql?.content ? "✓ SELECT-only query" : "○ SQL required"}</span>
+                  <span>
+                    {sql?.content
+                      ? "✓ Selected sources only"
+                      : "○ Source validation pending"}
+                  </span>
+                  <span>
+                    {sql?.content ? "✓ Output columns detected" : "○ Output schema pending"}
+                  </span>
+                </div>
+              </>
+            )}
           </Panel>
           <Panel title="4 · Sink Dataset">
             <div className="form-row three">
