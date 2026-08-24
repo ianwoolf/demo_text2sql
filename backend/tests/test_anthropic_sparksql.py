@@ -75,3 +75,20 @@ def test_provider_normalizes_boolean_sufficiency():
     result = provider.generate(build_generation_context(request, catalog), request)
     assert result.output.sufficiency.sufficient is True
     assert result.output.sufficiency.missing_information == []
+
+
+def test_provider_rejects_successful_generation_without_explanation():
+    output = {
+        "status": "generated",
+        "sufficiency": {"sufficient": True, "missing_information": [], "assumptions": []},
+        "sql": "SELECT 1 AS month",
+        "referenced_tables": [],
+        "output_columns": ["month"],
+        "explanation": "   ",
+    }
+    provider, _ = provider_for(json.dumps(output))
+    request = TransformationSQLGenerateRequest.model_validate(generation_payload("llm"))
+    catalog = LocalFileMetadataProvider().load_catalog({"path": str(CATALOG_PATH)})
+
+    with pytest.raises(InvalidProviderResponse, match="explanation"):
+        provider.generate(build_generation_context(request, catalog), request)

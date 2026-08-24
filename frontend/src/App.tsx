@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { KnowledgeRecommendations } from "./KnowledgeRecommendationPanel";
+import { SparkSQLExplanation } from "./SparkSQLExplanation";
 import {
   deriveRequestName,
   recommendKnowledge,
@@ -228,7 +229,6 @@ function GenerationHeader() {
                 : ""}
             </span>
           </div>
-          {result.explanation && <p>{result.explanation}</p>}
           <div className="llm-result-grid">
             <span>
               <small>Source sufficiency</small>
@@ -1169,6 +1169,11 @@ function TransformationBuilder({
                 Spark SQL.
               </div>
             )}
+            <SparkSQLExplanation
+              generationSource={sql?.generation_source}
+              status={sql?.status}
+              explanation={sql?.explanation}
+            />
             <div className="validation-strip">
               <span>{sql ? "✓ SELECT-only query" : "○ SQL required"}</span>
               <span>

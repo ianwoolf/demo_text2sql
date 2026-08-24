@@ -5,7 +5,7 @@ from time import perf_counter
 from typing import Any
 from uuid import uuid4
 from anthropic import Anthropic
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, model_validator
 from app.transformations.models import ProviderMetadata, SufficiencyResult, TransformationSQLGenerateRequest
 from app.transformations.preflight import GenerationContext
 
@@ -21,6 +21,8 @@ Rules:
 - Generate SELECT or WITH ... SELECT only; never generate DDL, DML, cache, command, or filesystem operations.
 - Use Apache Spark SQL syntax and qualify ambiguous columns.
 - Give every output expression a stable, unique name and preserve requested sink partition columns.
+- When status is generated, explanation is required and must concisely explain the selected sources, joins, filters, aggregations, and how the query satisfies the user's requirement.
+- When the metadata is insufficient, explanation must state what information is missing and sql must be null.
 - Return JSON only with status, sufficiency, sql, referenced_tables, output_columns, and explanation. No Markdown fences."""
 
 
@@ -39,6 +41,12 @@ class ModelOutput(BaseModel):
     referenced_tables: list[str] = []
     output_columns: list[str] = []
     explanation: str = ""
+
+    @model_validator(mode="after")
+    def require_generated_explanation(self):
+        if self.status == "generated" and not self.explanation.strip():
+            raise ValueError("explanation is required when status is generated")
+        return self
 
 
 class ProviderGenerationResult(BaseModel):
