@@ -5,6 +5,11 @@ import { SparkSQLExplanation } from "./SparkSQLExplanation";
 import { SparkSQLFailureNotice } from "./SparkSQLFailureNotice";
 import { TransformationQueryField } from "./TransformationQueryField";
 import {
+  DemoScenarioGrid,
+  McpHistoryConversation,
+  type McpDemoScenario,
+} from "./McpDemo";
+import {
   deriveRequestName,
   recommendKnowledge,
   resolveDemoQuerySources,
@@ -150,11 +155,6 @@ type TransformRequest = {
   };
 };
 
-const starters = [
-  "Show monthly sales this year",
-  "Which region has the highest sales?",
-  "Break down sales by product category",
-];
 const statusLabel: Record<string, string> = {
   waiting_submit: "Waiting to Submit",
   waiting_approval: "Waiting for Approval",
@@ -691,6 +691,7 @@ function Chat({ space }: { space: Space }) {
   const [conversation, setConversation] = useState<Conversation | null>(null),
     [question, setQuestion] = useState(""),
     [messages, setMessages] = useState<{ q: string; a: Answer }[]>([]),
+    [activeConversation, setActiveConversation] = useState<"sales" | "pipeline">("sales"),
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
@@ -706,6 +707,7 @@ function Chat({ space }: { space: Space }) {
     const q = (value ?? question).trim();
     if (!q || !conversation) return;
     setQuestion("");
+    setActiveConversation("sales");
     setLoading(true);
     setError("");
     try {
@@ -720,21 +722,35 @@ function Chat({ space }: { space: Space }) {
       setLoading(false);
     }
   }
+  function openScenario(scenario: McpDemoScenario) {
+    if (scenario.mode === "history") {
+      setMessages([]);
+      setActiveConversation("pipeline");
+      return;
+    }
+    ask(scenario.prompt);
+  }
+  function newConversation() {
+    setMessages([]);
+    setQuestion("");
+    setError("");
+    setActiveConversation("sales");
+  }
   return (
     <main className="chat-layout">
       <aside className="chat-list">
-        <button className="new-chat">＋ New conversation</button>
+        <button className="new-chat" onClick={newConversation}>＋ New conversation</button>
         <p>Recent conversations</p>
-        <div className="conversation active">
+        <button className={`conversation ${activeConversation === "sales" ? "active" : ""}`} onClick={newConversation}>
           Sales trend exploration
           <br />
           <small>Just now</small>
-        </div>
-        <div className="conversation">
-          Regional performance
+        </button>
+        <button className={`conversation ${activeConversation === "pipeline" ? "active" : ""}`} onClick={() => { setMessages([]); setActiveConversation("pipeline"); }}>
+          Build monthly sales pipeline
           <br />
-          <small>Yesterday</small>
-        </div>
+          <small>2 hours ago · 6 MCPs</small>
+        </button>
       </aside>
       <section className="chat-main">
         <header>
@@ -750,7 +766,7 @@ function Chat({ space }: { space: Space }) {
           <span className="badge mock">DEMO MODE</span>
         </header>
         <div className="messages">
-          {!messages.length && (
+          {!messages.length && activeConversation === "sales" && (
             <div className="hero">
               <div className="spark">✦</div>
               <h1>What would you like to know?</h1>
@@ -758,16 +774,10 @@ function Chat({ space }: { space: Space }) {
                 Ask in natural language. DataChat will query authorized data and
                 explain the result.
               </p>
-              <div className="starter">
-                {starters.map((q) => (
-                  <button key={q} onClick={() => ask(q)}>
-                    <b>↗</b>
-                    {q}
-                  </button>
-                ))}
-              </div>
+              <DemoScenarioGrid onSelect={openScenario} />
             </div>
           )}
+          {!messages.length && activeConversation === "pipeline" && <McpHistoryConversation />}
           {messages.map((m, i) => (
             <div key={i}>
               <div className="user-message">{m.q}</div>
