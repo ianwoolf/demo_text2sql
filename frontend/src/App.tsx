@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { KnowledgeRecommendations } from "./KnowledgeRecommendationPanel";
 import { SparkSQLExplanation } from "./SparkSQLExplanation";
 import { SparkSQLFailureNotice } from "./SparkSQLFailureNotice";
 import { TransformationQueryField } from "./TransformationQueryField";
+import {
+  DemoScenarioGrid,
+  McpHistoryConversation,
+  type McpDemoScenario,
+} from "./McpDemo";
 import {
   deriveRequestName,
   recommendKnowledge,
@@ -150,11 +155,6 @@ type TransformRequest = {
   };
 };
 
-const starters = [
-  "Show monthly sales this year",
-  "Which region has the highest sales?",
-  "Break down sales by product category",
-];
 const statusLabel: Record<string, string> = {
   waiting_submit: "Waiting to Submit",
   waiting_approval: "Waiting for Approval",
@@ -691,6 +691,7 @@ function Chat({ space }: { space: Space }) {
   const [conversation, setConversation] = useState<Conversation | null>(null),
     [question, setQuestion] = useState(""),
     [messages, setMessages] = useState<{ q: string; a: Answer }[]>([]),
+    [activeConversation, setActiveConversation] = useState<"sales" | "pipeline">("sales"),
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
@@ -706,6 +707,7 @@ function Chat({ space }: { space: Space }) {
     const q = (value ?? question).trim();
     if (!q || !conversation) return;
     setQuestion("");
+    setActiveConversation("sales");
     setLoading(true);
     setError("");
     try {
@@ -720,21 +722,35 @@ function Chat({ space }: { space: Space }) {
       setLoading(false);
     }
   }
+  function openScenario(scenario: McpDemoScenario) {
+    if (scenario.mode === "history") {
+      setMessages([]);
+      setActiveConversation("pipeline");
+      return;
+    }
+    ask(scenario.prompt);
+  }
+  function newConversation() {
+    setMessages([]);
+    setQuestion("");
+    setError("");
+    setActiveConversation("sales");
+  }
   return (
     <main className="chat-layout">
       <aside className="chat-list">
-        <button className="new-chat">＋ New conversation</button>
+        <button className="new-chat" onClick={newConversation}>＋ New conversation</button>
         <p>Recent conversations</p>
-        <div className="conversation active">
+        <button className={`conversation ${activeConversation === "sales" ? "active" : ""}`} onClick={newConversation}>
           Sales trend exploration
           <br />
           <small>Just now</small>
-        </div>
-        <div className="conversation">
-          Regional performance
+        </button>
+        <button className={`conversation ${activeConversation === "pipeline" ? "active" : ""}`} onClick={() => { setMessages([]); setActiveConversation("pipeline"); }}>
+          Build monthly sales pipeline
           <br />
-          <small>Yesterday</small>
-        </div>
+          <small>2 hours ago · 6 MCPs</small>
+        </button>
       </aside>
       <section className="chat-main">
         <header>
@@ -750,7 +766,7 @@ function Chat({ space }: { space: Space }) {
           <span className="badge mock">DEMO MODE</span>
         </header>
         <div className="messages">
-          {!messages.length && (
+          {!messages.length && activeConversation === "sales" && (
             <div className="hero">
               <div className="spark">✦</div>
               <h1>What would you like to know?</h1>
@@ -758,16 +774,10 @@ function Chat({ space }: { space: Space }) {
                 Ask in natural language. DataChat will query authorized data and
                 explain the result.
               </p>
-              <div className="starter">
-                {starters.map((q) => (
-                  <button key={q} onClick={() => ask(q)}>
-                    <b>↗</b>
-                    {q}
-                  </button>
-                ))}
-              </div>
+              <DemoScenarioGrid onSelect={openScenario} />
             </div>
           )}
+          {!messages.length && activeConversation === "pipeline" && <McpHistoryConversation />}
           {messages.map((m, i) => (
             <div key={i}>
               <div className="user-message">{m.q}</div>
@@ -818,6 +828,7 @@ function TransformationBuilder({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [detailTable, setDetailTable] = useState<Table | null>(null);
   const [requirement, setRequirement] = useState("");
+  const skipNextExampleSourceSync = useRef(false);
   const [sql, setSql] = useState<SparkSQL | null>(null);
   const [sink, setSink] = useState<Sink>({
     catalog: "analytics",
@@ -840,6 +851,10 @@ function TransformationBuilder({
       catalog.tables.map((table) => table.name),
     );
     if (!resolved) return;
+    if (skipNextExampleSourceSync.current) {
+      skipNextExampleSourceSync.current = false;
+      return;
+    }
     setSelected(resolved.selected);
     setPrimary(resolved.primary);
     setSql(null);
@@ -880,6 +895,11 @@ function TransformationBuilder({
     setPrimary(resolved.primary);
     setSql(null);
     setError("");
+  }
+  function useExampleForRecommendations(example: string) {
+    if (example === requirement) return;
+    skipNextExampleSourceSync.current = true;
+    setRequirement(example);
   }
   async function generate() {
     setBusy(true);
@@ -990,7 +1010,11 @@ function TransformationBuilder({
       <div className="builder-grid">
         <div>
           <Panel title="1 · Transformation Requirement">
-            <TransformationQueryField value={requirement} onChange={setRequirement} />
+            <TransformationQueryField
+              value={requirement}
+              onChange={setRequirement}
+              onUseExample={useExampleForRecommendations}
+            />
             <KnowledgeRecommendations
               query={requirement}
               items={recommendations}
@@ -1666,7 +1690,7 @@ function TaskDetail({
   );
 }
 
-function Admin({ space, section }: { space: Space; section: string }) {
+export function Admin({ space, section }: { space: Space; section: string }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null),
     [semantic, setSemantic] = useState<Semantic | null>(null),
     [reviews, setReviews] = useState<any[]>([]),
@@ -1677,6 +1701,13 @@ function Admin({ space, section }: { space: Space; section: string }) {
     api<any[]>("/reviews").then(setReviews);
     api<any>("/benchmarks").then(setBench);
   }, [space.id]);
+  const dataDomains = [
+    {name: "Sales Operations", description: "Orders, transactions, and commercial activity", tables: ["orders", "order_items"]},
+    {name: "Customer", description: "Customer identity and regional attributes", tables: ["customers"]},
+    {name: "Product", description: "Product catalog and merchandising dimensions", tables: ["products"]},
+  ];
+  const tierLabel = (tier: Table["data_tier"]) =>
+    ({T1: "T1 · Raw", T2: "T2 · Curated", T3: "T3 · Aggregated"})[tier];
   if (section === "settings")
     return (
       <div className="admin-page">
@@ -1724,27 +1755,54 @@ function Admin({ space, section }: { space: Space; section: string }) {
           sub="Manage the metadata and business context used by generation."
         />
         <div className="grid semantics">
-          <Panel title={`Data Assets · ${catalog?.tables.length ?? 0} tables`}>
+          <Panel title={`Data Assets · ${catalog?.tables.length ?? 0} tables · ${dataDomains.length} domains`}>
             <div className="metadata-tree">
-              {catalog?.tables.map((t) => (
-                <details key={t.name} open>
-                  <summary>
-                    <span className="table-icon">▦</span>
-                    <b>{t.name}</b>
-                    <em>{t.description}</em>
-                  </summary>
-                  {t.columns.map((c) => (
-                    <div className="column" key={c.name}>
-                      <code>{c.name}</code>
-                      <span>{c.data_type}</span>
-                      <small>{c.description}</small>
-                    </div>
+              {dataDomains.map((domain) => {
+                const tables = catalog?.tables.filter((table) => domain.tables.includes(table.name)) || [];
+                return <section className="data-domain" aria-label={`${domain.name} domain`} key={domain.name}>
+                  <header className="data-domain-head">
+                    <div><span>DOMAIN</span><b>{domain.name}</b><small>{domain.description}</small></div>
+                    <em>{tables.length} {tables.length === 1 ? "dataset" : "datasets"}</em>
+                  </header>
+                  {tables.map((t) => (
+                    <details key={t.name} open>
+                      <summary>
+                        <span className="table-icon">▦</span>
+                        <div className="dataset-identity"><b>{t.name}</b><em>{t.description}</em></div>
+                        <div className="dataset-governance">
+                          <span className={`tier-badge ${t.data_tier.toLowerCase()}`}>{tierLabel(t.data_tier)}</span>
+                          <span><small>Owner</small>{t.owner}</span>
+                          <span><small>Classification</small>{t.name === "customers" ? "Restricted" : "Internal"}</span>
+                          <span><small>Your access</small>{t.name === "customers" ? "Query" : "Manage"}</span>
+                        </div>
+                      </summary>
+                      {t.columns.map((c) => (
+                        <div className="column" key={c.name}>
+                          <code>{c.name}</code>
+                          <span>{c.data_type}</span>
+                          <small>{c.description}</small>
+                        </div>
+                      ))}
+                    </details>
                   ))}
-                </details>
-              ))}
+                </section>;
+              })}
             </div>
           </Panel>
           <div>
+            <Panel title="User Access">
+              <div className="access-profile">
+                <span>AM</span>
+                <div><b>Alex Morgan</b><small>Data Administrator · Active</small></div>
+                <em>FULL ACCESS</em>
+              </div>
+              <div className="access-groups">
+                <small>GROUP MEMBERSHIP</small>
+                <span><b>Data Administrators</b><em>Manage · All domains</em></span>
+                <span><b>Sales Analytics</b><em>Query · Sales Operations</em></span>
+              </div>
+              <button className="manage-access-button">Manage Access</button>
+            </Panel>
             <Panel title="Business Metrics">
               {semantic?.metrics.map((m) => (
                 <div className="semantic-item" key={m.name}>
@@ -1762,7 +1820,7 @@ function Admin({ space, section }: { space: Space; section: string }) {
                 </div>
               ))}
             </Panel>
-            <Panel title="Trusted Examples">
+            <Panel title="Examples">
               {semantic?.examples.map((e) => (
                 <div className="semantic-item" key={e.question}>
                   <b>✓ {e.question}</b>
